@@ -1,4 +1,4 @@
-# Linha 200\
+# Linha 345
 # Passos
 
 #                    REGIOES IMEDIATAS            ####
@@ -199,8 +199,154 @@ joined_SP_RJ <-inner_join(sf_vacinas, evolucao_vacina_regiao_imediata_SP_RJ, by 
 
 vwide <- pivot_wider(data = joined_SP_RJ, names_from="date", values_from = "taxa_populacao_totalmente_vacinada")
 
+# CHECKCPOINT ####
+# EXPORTAR TAXA DE VACINACAO PARA GEODA ####
 st_write(vwide , "./joined_SP_RJ/joined_SP_RJ.shp")
 
+
+
+###############################################################
+# AGORA CARREGAR OCUPACAO ####
+
+system.time( 
+  source("./setup_ambiente.R")
+)
+
+# Arquivo 08-TCC_taxa_ocupacao.R linha 532
+
+
+
+arquivo = "./bases/SRAG_2021_a_2023/INFLUD21-01-05-2023.csv"
+# arquivo = "./bases/SRAG_2021_a_2023/friburgo_INFLUD21-01-05-2023.csv"
+
+
+ocupacao_carregada <- spark_read_csv(
+  sc,
+  delimiter = ";",
+  name = "OCUPACAO_SRAG",
+  path = arquivo,
+  header = TRUE,
+  infer_schema = TRUE
+)
+
+# Separa variavel de interesse por municipio e por semana
+# Observando Semana de entrada na UTI no estado RJ
+
+# copy_to(sc, ocupacao,name = "ocupacao_spark", overwrite = TRUE)
+composicao_por_municipios_spark <- copy_to(
+  sc,
+  composicao_por_municipios,
+  name = "composicao_por_municipios_spark",
+  overwrite = TRUE
+)
+# NO coleta_composicao_por_municipios_spark <- collect(composicao_por_municipios_spark) #So vendo se esta como eu esperava
+
+# ocupacao_por_regiao_imediata = 
+ocupacao <- sparklyr::left_join(
+  x = ocupacao_carregada,
+  y = composicao_por_municipios_spark,
+  by = join_by(CO_MUN_RES == code_muni)
+)
+
+
+
+# Ajusta o formato das colunas de data
+
+ocupacao <- ocupacao %>%
+  mutate(
+    DT_NOTIFIC = to_date(DT_NOTIFIC, "d/M/y"),
+    DT_SIN_PRI = to_date(DT_SIN_PRI, "d/M/y"),
+    DT_NASC = to_date(DT_NASC, "d/M/y"),
+    DT_UT_DOSE = to_date(DT_UT_DOSE, "d/M/y"),
+    DT_VAC_MAE = to_date(DT_VAC_MAE, "d/M/y"),
+    DT_DOSEUNI = to_date(DT_DOSEUNI, "d/M/y"),
+    DT_1_DOSE = to_date(DT_1_DOSE, "d/M/y"),
+    DT_2_DOSE = to_date(DT_2_DOSE, "d/M/y"),
+    DT_ANTIVIR = to_date(DT_ANTIVIR, "d/M/y"),
+    DT_INTERNA = to_date(DT_INTERNA, "d/M/y"),
+    DT_ENTUTI = to_date(DT_ENTUTI, "d/M/y"),
+    DT_SAIDUTI = to_date(DT_SAIDUTI, "d/M/y"),
+    DT_RAIOX = to_date(DT_RAIOX, "d/M/y"),
+    DT_EVOLUCA = to_date(DT_EVOLUCA, "d/M/y"),
+    DT_COLETA = to_date(DT_COLETA, "d/M/y"),
+    DT_PCR = to_date(DT_PCR, "d/M/y"),
+    DT_ENCERRA = to_date(DT_ENCERRA, "d/M/y"),
+    DT_DIGITA = to_date(DT_DIGITA, "d/M/y"),
+    DT_VGM = to_date(DT_VGM, "d/M/y"),
+    DT_TOMO = to_date(DT_TOMO, "d/M/y"),
+    DT_RES_AN = to_date(DT_RES_AN, "d/M/y"),
+    DT_CO_SOR = to_date(DT_CO_SOR, "d/M/y"),
+    DT_RES = to_date(DT_RES, "d/M/y"),
+    SEM_ENT_UTI = as.integer(date_format(to_date(DT_ENTUTI, "d/M/y"), "w"))
+    # SEM_ENT_UTI = as.week(DT_ENTUTI, format = "d/M/y")
+  )  
+
+# NO coleta_ocupacao <- collect(ocupacao)
+
+# NO rj_por_semana  <- coleta_ocupacao %>%
+#   filter(SG_UF == 'RJ') %>% 
+#   filter(!is.na(SEM_ENT_UTI))
+
+ocupacao <-ocupacao %>% filter(VACINA_COV==1)
+
+por_municipio_semanas <- ocupacao %>%
+  # filter(SG_UF == 'RJ') %>% 
+  filter(!is.na(SEM_ENT_UTI)) %>% 
+  group_by(CO_MUN_RES, SEM_ENT_UTI) %>%
+  # group_by(CD_GEOCODI, SEM_ENT_UTI) %>%
+  summarize(
+    ocorrencias = n(),
+    .groups = 'drop'
+  )
+#  NO coleta_por_municipio_semanas <- collect(por_municipio_semanas)
+
+por_regiao_intermediaria_semanas <- ocupacao %>%
+  # filter(SG_UF == 'RJ') %>% 
+  filter(!is.na(SEM_ENT_UTI)) %>% 
+  # mutate(rgi = as.numeric(substr(CD_GEOCODI,1,6))) %>%
+  group_by(cod_rgi, SEM_ENT_UTI) %>%
+  summarize(
+    ocorrencias = n(),
+    .groups = 'drop'
+  )
+
+por_semana <- ocupacao %>%
+  # filter(SG_UF == 'RJ') %>% 
+  filter(!is.na(SEM_ENT_UTI)) %>% 
+  # mutate(rgi = as.numeric(substr(CD_GEOCODI,1,6))) %>%
+  group_by(SEM_ENT_UTI) %>%
+  summarize(
+    ocorrencias = n(),
+    .groups = 'drop'
+  )
+
+rsemana <- collect(por_semana)
+
+# por_dia <- ocupacao %>%
+#   # filter(SG_UF == 'RJ') %>% 
+#   filter(!is.na(DT_ENTUTI)) %>% 
+#   # mutate(rgi = as.numeric(substr(CD_GEOCODI,1,6))) %>%
+#   group_by(DT_ENTUTI) %>%
+#   summarize(
+#     ocorrencias = n(),
+#     .groups = 'drop'
+#   )
+# 
+# rdia <- collect(por_dia)
+
+coletado_R_semanas <- collect(por_municipio_semanas)
+coletado_R_semanas <- coletado_R_semanas %>% inner_join(populacao_municipios, by  = join_by(CO_MUN_RES == code_muni))
+coletado_R_semanas <- coletado_R_semanas %>% mutate(taxa = (ocorrencias/populacao_municipio) * 100000)
+
+coletado_R_regiao_intermediaria_semanas <- collect(por_regiao_intermediaria_semanas)
+coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% inner_join(populacao_regiao_imediata, by = "cod_rgi")
+coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% mutate(taxa = (ocorrencias/populacao_rgi) * 100000)
+
+# ATE AQUI ESTA BATENDO 
+
+
+
+###############################################################
 joined_SP_RJ_wide <-inner_join(sf_vacinas, vwide, by = join_by(rgi == rgi))
 st_write(joined_SP_RJ_wide , "./joined_SP_RJ/joined_SP_RJ.shp")
 
