@@ -4,7 +4,7 @@
 #                    REGIOES IMEDIATAS            ####
 ## Obter regiões imediatas ####
 ### Obter dados de municípios que compõem cada região imediata ####
-
+# Regiao imediata aqui -> https://github.com/ipeaGIT/geobr ####
 # ARTIGO!!!!
 # Motivacao regiao imediata: 
 # https://biblioteca.ibge.gov.br/index.php/biblioteca-catalogo?view=detalhes&id=2100600
@@ -88,10 +88,10 @@ code_muni_friburgo = 330340
 code_muni_sampa = 355030
 
 friburgo <- as.data.frame.ts(populacao_totalmente_vacinada_por_data_municipio[,as.character(code_muni_friburgo)],populacao_totalmente_vacinada_por_data_municipio[,1])
-plot(friburgo)
+# plot(friburgo)
 
 sampa <- as.data.frame.ts(populacao_totalmente_vacinada_por_data_municipio[,as.character(code_muni_sampa)],populacao_totalmente_vacinada_por_data_municipio[,1])
-plot(sampa)
+# plot(sampa)
 
 # frisampa <- as.data.frame(
 #   populacao_totalmente_vacinada_por_data_municipio[,as.character(code_muni_friburgo)],
@@ -201,7 +201,7 @@ vwide <- pivot_wider(data = joined_SP_RJ, names_from="date", values_from = "taxa
 
 # CHECKCPOINT ####
 # EXPORTAR TAXA DE VACINACAO PARA GEODA ####
-st_write(vwide , "./joined_SP_RJ/joined_SP_RJ.shp")
+# st_write(vwide , "./joined_SP_RJ/joined_SP_RJ.shp")
 
 
 
@@ -277,9 +277,18 @@ ocupacao <- ocupacao %>%
     DT_RES_AN = to_date(DT_RES_AN, "d/M/y"),
     DT_CO_SOR = to_date(DT_CO_SOR, "d/M/y"),
     DT_RES = to_date(DT_RES, "d/M/y"),
-    SEM_ENT_UTI = as.integer(date_format(to_date(DT_ENTUTI, "d/M/y"), "w"))
-    # SEM_ENT_UTI = as.week(DT_ENTUTI, format = "d/M/y")
-  )  
+    # SEM_ENT_UTI = as.integer(date_format(to_date(DT_ENTUTI, "d/M/y"), "w")),
+    # SEM_ENT_UTI = sql("CAST(CAST(unix_timestamp(DT_ENTUTI, 'MM/dd/yyyy') AS timestamp) AS date)")
+    # SEM_ENT_UTI = isoweek(dmy(DT_ENTUTI)),
+    # SEM_ENT_UTI =  dayofweek("DT_ENTUTI")
+    # SEM_ENT_UTI = sql("weekofyear(DT_ENTUTI)")
+    SEM_ENT_UTI = sql("weekofyear(to_date(DT_ENTUTI, 'd/M/y'))")
+    )
+
+# https://stackoverflow.com/questions/46086756/epi-week-query-method-for-sql-server
+      
+# SEMANA EPIDEMIOLOGICA ####
+# http://www.portalsinan.saude.gov.br/calendario-epidemiologico?layout=edit&id=168
 
 # NO coleta_ocupacao <- collect(ocupacao)
 
@@ -341,6 +350,7 @@ coletado_R_semanas <- coletado_R_semanas %>% mutate(taxa = (ocorrencias/populaca
 coletado_R_regiao_intermediaria_semanas <- collect(por_regiao_intermediaria_semanas)
 coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% inner_join(populacao_regiao_imediata, by = "cod_rgi")
 coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% mutate(taxa = (ocorrencias/populacao_rgi) * 100000)
+
 
 # ATE AQUI ESTA BATENDO 
 
