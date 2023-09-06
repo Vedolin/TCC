@@ -216,7 +216,7 @@ system.time(
 
 
 
-arquivo = "./bases/SRAG_2021_a_2023/INFLUD21-01-05-2023.csv"
+arquivo = "./bases/SRAG_2021_a_2023/RESUMO_INTERNACOES.csv"
 # arquivo = "./bases/SRAG_2021_a_2023/friburgo_INFLUD21-01-05-2023.csv"
 
 
@@ -254,29 +254,29 @@ ocupacao <- sparklyr::left_join(
 
 ocupacao <- ocupacao %>%
   mutate(
-    DT_NOTIFIC = to_date(DT_NOTIFIC, "d/M/y"),
-    DT_SIN_PRI = to_date(DT_SIN_PRI, "d/M/y"),
-    DT_NASC = to_date(DT_NASC, "d/M/y"),
-    DT_UT_DOSE = to_date(DT_UT_DOSE, "d/M/y"),
-    DT_VAC_MAE = to_date(DT_VAC_MAE, "d/M/y"),
-    DT_DOSEUNI = to_date(DT_DOSEUNI, "d/M/y"),
-    DT_1_DOSE = to_date(DT_1_DOSE, "d/M/y"),
-    DT_2_DOSE = to_date(DT_2_DOSE, "d/M/y"),
-    DT_ANTIVIR = to_date(DT_ANTIVIR, "d/M/y"),
+    # DT_NOTIFIC = to_date(DT_NOTIFIC, "d/M/y"),
+    # DT_SIN_PRI = to_date(DT_SIN_PRI, "d/M/y"),
+    # DT_NASC = to_date(DT_NASC, "d/M/y"),
+    # DT_UT_DOSE = to_date(DT_UT_DOSE, "d/M/y"),
+    # DT_VAC_MAE = to_date(DT_VAC_MAE, "d/M/y"),
+    # DT_DOSEUNI = to_date(DT_DOSEUNI, "d/M/y"),
+    # DT_1_DOSE = to_date(DT_1_DOSE, "d/M/y"),
+    # DT_2_DOSE = to_date(DT_2_DOSE, "d/M/y"),
+    # DT_ANTIVIR = to_date(DT_ANTIVIR, "d/M/y"),
     DT_INTERNA = to_date(DT_INTERNA, "d/M/y"),
     DT_ENTUTI = to_date(DT_ENTUTI, "d/M/y"),
-    DT_SAIDUTI = to_date(DT_SAIDUTI, "d/M/y"),
-    DT_RAIOX = to_date(DT_RAIOX, "d/M/y"),
-    DT_EVOLUCA = to_date(DT_EVOLUCA, "d/M/y"),
-    DT_COLETA = to_date(DT_COLETA, "d/M/y"),
-    DT_PCR = to_date(DT_PCR, "d/M/y"),
-    DT_ENCERRA = to_date(DT_ENCERRA, "d/M/y"),
-    DT_DIGITA = to_date(DT_DIGITA, "d/M/y"),
-    DT_VGM = to_date(DT_VGM, "d/M/y"),
-    DT_TOMO = to_date(DT_TOMO, "d/M/y"),
-    DT_RES_AN = to_date(DT_RES_AN, "d/M/y"),
-    DT_CO_SOR = to_date(DT_CO_SOR, "d/M/y"),
-    DT_RES = to_date(DT_RES, "d/M/y"),
+    # DT_SAIDUTI = to_date(DT_SAIDUTI, "d/M/y"),
+    # DT_RAIOX = to_date(DT_RAIOX, "d/M/y"),
+    # DT_EVOLUCA = to_date(DT_EVOLUCA, "d/M/y"),
+    # DT_COLETA = to_date(DT_COLETA, "d/M/y"),
+    # DT_PCR = to_date(DT_PCR, "d/M/y"),
+    # DT_ENCERRA = to_date(DT_ENCERRA, "d/M/y"),
+    # DT_DIGITA = to_date(DT_DIGITA, "d/M/y"),
+    # DT_VGM = to_date(DT_VGM, "d/M/y"),
+    # DT_TOMO = to_date(DT_TOMO, "d/M/y"),
+    # DT_RES_AN = to_date(DT_RES_AN, "d/M/y"),
+    # DT_CO_SOR = to_date(DT_CO_SOR, "d/M/y"),
+    # DT_RES = to_date(DT_RES, "d/M/y"),
     # SEM_ENT_UTI = as.integer(date_format(to_date(DT_ENTUTI, "d/M/y"), "w")),
     # SEM_ENT_UTI = sql("CAST(CAST(unix_timestamp(DT_ENTUTI, 'MM/dd/yyyy') AS timestamp) AS date)")
     # SEM_ENT_UTI = isoweek(dmy(DT_ENTUTI)),
@@ -284,6 +284,45 @@ ocupacao <- ocupacao %>%
     # SEM_ENT_UTI = sql("weekofyear(DT_ENTUTI)")
     SEM_ENT_UTI = sql("weekofyear(to_date(DT_ENTUTI, 'd/M/y'))")
     )
+PARE AQUI: TENHO QUE POR O ANO
+# Acho que estou brigando demais com o spark
+# Vou usar alguns comandos linux para ganhar tempo e assertividade
+# Estou interessado em tres campos basicamente, e preciso criar a semana epidemiologica a partir da data da internacao por srag 
+# pwd 
+# cd '/home/administrator/Desktop/Guarda/personal/MBA/aulas/Big Data e Deployment de Modelos II/Arquivos e Scripts 28.04.2023/TCC/bases/SRAG_2021_a_2023'
+# awk -F';' 'BEGIN { OFS=";" }  {print $26,$70,$77,$155}' INFLUD*.csv > RESUMO_INTERNACOES.csv
+# "CO_MUN_RES";"DT_INTERNA";"DT_ENTUTI";"VACINA_COV"
+# wc -l RESUMO_INTERNACOES.csv
+# 2350258 RESUMO_INTERNACOES.csv
+
+# Os valores válidos para o campo 4, VACINA_COV, são
+# 1-Sim
+# 2-Não
+# 9-Ignorado 
+# Informar se o paciente recebeu vacina COVID-19, após verificar a documentação
+
+# Temos 445054 faltantes, e 569 inesperados.
+# Considerando que o banco de dados prevê que esse dado pode ser "ignorado"
+# vou considerá-lo assim para as análises
+# Isso certamente é ruim, pois pode gerar um viés se não tratado adequadamente
+
+# No entanto não esou buscando necessariamente se houve uma variação na taxa de vacinados que foram internados
+# mas sim na taxa de internação em função da taxa de vacinação da população
+
+# Nesse sentido estou olhando muito mais para o efeito em grande escala, não descartando um
+# possível efeito de proteção de rebanho
+# Amicus Plato, sed magis amica Veritas
+
+# cut -d\; -f4 RESUMO_INTERNACOES.csv | sort | uniq -c 
+# 445054 
+# 4 ""
+# 772302 1
+# 830811 2
+# 1 3
+# 568 4
+# 301515 9
+# 3 "VACINA_COV"
+
 
 # https://stackoverflow.com/questions/46086756/epi-week-query-method-for-sql-server
       
