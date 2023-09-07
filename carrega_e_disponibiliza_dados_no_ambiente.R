@@ -282,9 +282,10 @@ ocupacao <- ocupacao %>%
     # SEM_ENT_UTI = isoweek(dmy(DT_ENTUTI)),
     # SEM_ENT_UTI =  dayofweek("DT_ENTUTI")
     # SEM_ENT_UTI = sql("weekofyear(DT_ENTUTI)")
-    SEM_ENT_UTI = sql("weekofyear(to_date(DT_ENTUTI, 'd/M/y'))")
+    SEM_ENT_UTI = sql("weekofyear(to_date(DT_ENTUTI, 'd/M/y'))"),
+    ANO_ENT_UTI = sql("year(to_date(DT_ENTUTI, 'd/M/y'))")
     )
-PARE AQUI: TENHO QUE POR O ANO
+
 # Acho que estou brigando demais com o spark
 # Vou usar alguns comandos linux para ganhar tempo e assertividade
 # Estou interessado em tres campos basicamente, e preciso criar a semana epidemiologica a partir da data da internacao por srag 
@@ -335,12 +336,13 @@ PARE AQUI: TENHO QUE POR O ANO
 #   filter(SG_UF == 'RJ') %>% 
 #   filter(!is.na(SEM_ENT_UTI))
 
-ocupacao <-ocupacao %>% filter(VACINA_COV==1)
+# Remove filtro de vacina; não estou olhando apenas vacinados, e sim internações totais
+# ocupacao <-ocupacao %>% filter(VACINA_COV==1)
 
 por_municipio_semanas <- ocupacao %>%
   # filter(SG_UF == 'RJ') %>% 
   filter(!is.na(SEM_ENT_UTI)) %>% 
-  group_by(CO_MUN_RES, SEM_ENT_UTI) %>%
+  group_by(CO_MUN_RES, ANO_ENT_UTI, SEM_ENT_UTI) %>%
   # group_by(CD_GEOCODI, SEM_ENT_UTI) %>%
   summarize(
     ocorrencias = n(),
@@ -352,7 +354,7 @@ por_regiao_intermediaria_semanas <- ocupacao %>%
   # filter(SG_UF == 'RJ') %>% 
   filter(!is.na(SEM_ENT_UTI)) %>% 
   # mutate(rgi = as.numeric(substr(CD_GEOCODI,1,6))) %>%
-  group_by(cod_rgi, SEM_ENT_UTI) %>%
+  group_by(cod_rgi, ANO_ENT_UTI, SEM_ENT_UTI) %>%
   summarize(
     ocorrencias = n(),
     .groups = 'drop'
@@ -362,7 +364,7 @@ por_semana <- ocupacao %>%
   # filter(SG_UF == 'RJ') %>% 
   filter(!is.na(SEM_ENT_UTI)) %>% 
   # mutate(rgi = as.numeric(substr(CD_GEOCODI,1,6))) %>%
-  group_by(SEM_ENT_UTI) %>%
+  group_by(ANO_ENT_UTI, SEM_ENT_UTI) %>%
   summarize(
     ocorrencias = n(),
     .groups = 'drop'
