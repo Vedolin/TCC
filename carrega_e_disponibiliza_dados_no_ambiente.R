@@ -1,4 +1,21 @@
-# Linha 345
+# BANCOS DE DADOS: ####
+# * taxa_internacao_por_100k_por_regiao_intermediaria_por_semana ####
+# * evolucao_vacina_rgi_semana traz o total de vacinados, agrupado por rgi, ano e semana.
+# -> evolucao_vacina_regiao_imediata tem a taxa da poplação totalmente vacinada dia a dia ####
+
+# evolucao_vacina_regiao_imediata Contem todas as datas (sem buracos) ####
+# evolucao_vacina_regiao_imediata_SP_RJ pegou os dias 01 de cada mes ####
+
+# Correlação espaço-temporal entre vacinação contra SARS-CoV-2 e ocupação
+# hospitalar por Síndrome Respiratória Aguda Grave no Brasil na pandemia de COVID-19
+
+# Analise primaria comparando taxa de vacinacao com data de internacao
+# Analise secundaria comparando taxa de vacinacao com data de entrada em UTI
+
+# Objetivos a serem ajustados em funcao das perguntas acima
+
+
+# Linha 490
 # Passos
 
 #                    REGIOES IMEDIATAS            ####
@@ -181,12 +198,25 @@ evolucao_vacina_regiao_imediata <- evolucao_vacina_municipio %>%
 #     theme(axis.text.x=element_text(angle=60, hjust=1)) 
 # )
 
+# evolucao_vacina_regiao_imediata Contem todas as datas (sem buracos) ####
+# evolucao_vacina_regiao_imediata_SP_RJ pegou os dias 01 de cada mes ####
+
 evolucao_vacina_regiao_imediata_SP_RJ <- evolucao_vacina_regiao_imediata %>%
   filter(substr(cod_rgi,0,2) %in% c('35','33')) %>% 
-  filter(day(date)==1) 
+  filter(day(date)==1)  # pega apenas o dia 01 de cada mes
   # filter(year(date) %in% c(2021, 2022, 2023))
 
+evolucao_vacina_rgi_semana <- evolucao_vacina_municipio %>%
+  mutate(SEM_VACINA = isoweek(date),
+         ANO_VACINA = year(date)
+  ) %>% 
+  group_by(cod_rgi, ANO_VACINA, SEM_VACINA) %>%
+  summarize(
+    populacao_totalmente_vacinada = sum(people_fully_vaccinated, na.rm = TRUE),
+    .groups = 'drop'
+  ) 
 
+# evolucao_vacina_rgi_semana traz o total de vacinados, agrupado por rgi, ano e semana.
 
 
 spatial_vacinas_por_regiao_imediata <- regiao_imediata
@@ -264,7 +294,7 @@ ocupacao <- ocupacao %>%
     # DT_2_DOSE = to_date(DT_2_DOSE, "d/M/y"),
     # DT_ANTIVIR = to_date(DT_ANTIVIR, "d/M/y"),
     DT_INTERNA = to_date(DT_INTERNA, "d/M/y"),
-    DT_ENTUTI = to_date(DT_ENTUTI, "d/M/y"),
+    # DT_ENTUTI = to_date(DT_ENTUTI, "d/M/y"),
     # DT_SAIDUTI = to_date(DT_SAIDUTI, "d/M/y"),
     # DT_RAIOX = to_date(DT_RAIOX, "d/M/y"),
     # DT_EVOLUCA = to_date(DT_EVOLUCA, "d/M/y"),
@@ -282,9 +312,15 @@ ocupacao <- ocupacao %>%
     # SEM_ENT_UTI = isoweek(dmy(DT_ENTUTI)),
     # SEM_ENT_UTI =  dayofweek("DT_ENTUTI")
     # SEM_ENT_UTI = sql("weekofyear(DT_ENTUTI)")
-    SEM_ENT_UTI = sql("weekofyear(to_date(DT_ENTUTI, 'd/M/y'))"),
-    ANO_ENT_UTI = sql("year(to_date(DT_ENTUTI, 'd/M/y'))")
+    # SEM_ENT_UTI = sql("weekofyear(to_date(DT_ENTUTI, 'd/M/y'))"),
+    # ANO_ENT_UTI = sql("year(to_date(DT_ENTUTI, 'd/M/y'))"),
+    SEM_INTERNA = sql("weekofyear(to_date(DT_INTERNA, 'd/M/y'))"),
+    ANO_INTERNA = sql("year(to_date(DT_INTERNA, 'd/M/y'))"),
     )
+
+ocupacao <- ocupacao %>%
+  filter(DT_INTERNA >= to_date("01/01/2021", "d/M/y")) %>% # Inicio dos dados de internacao
+  filter(DT_INTERNA <= to_date("01/04/2023", "d/M/y")) # Ultimo dia da semana epidemiologica 13
 
 # Acho que estou brigando demais com o spark
 # Vou usar alguns comandos linux para ganhar tempo e assertividade
@@ -341,8 +377,8 @@ ocupacao <- ocupacao %>%
 
 por_municipio_semanas <- ocupacao %>%
   # filter(SG_UF == 'RJ') %>% 
-  filter(!is.na(SEM_ENT_UTI)) %>% 
-  group_by(CO_MUN_RES, ANO_ENT_UTI, SEM_ENT_UTI) %>%
+  filter(!is.na(SEM_INTERNA)) %>% 
+  group_by(CO_MUN_RES, ANO_INTERNA, SEM_INTERNA) %>%
   # group_by(CD_GEOCODI, SEM_ENT_UTI) %>%
   summarize(
     ocorrencias = n(),
@@ -352,9 +388,9 @@ por_municipio_semanas <- ocupacao %>%
 
 por_regiao_intermediaria_semanas <- ocupacao %>%
   # filter(SG_UF == 'RJ') %>% 
-  filter(!is.na(SEM_ENT_UTI)) %>% 
+  filter(!is.na(SEM_INTERNA)) %>% 
   # mutate(rgi = as.numeric(substr(CD_GEOCODI,1,6))) %>%
-  group_by(cod_rgi, ANO_ENT_UTI, SEM_ENT_UTI) %>%
+  group_by(cod_rgi, ANO_INTERNA, SEM_INTERNA) %>%
   summarize(
     ocorrencias = n(),
     .groups = 'drop'
@@ -362,9 +398,9 @@ por_regiao_intermediaria_semanas <- ocupacao %>%
 
 por_semana <- ocupacao %>%
   # filter(SG_UF == 'RJ') %>% 
-  filter(!is.na(SEM_ENT_UTI)) %>% 
+  filter(!is.na(SEM_INTERNA)) %>% 
   # mutate(rgi = as.numeric(substr(CD_GEOCODI,1,6))) %>%
-  group_by(ANO_ENT_UTI, SEM_ENT_UTI) %>%
+  group_by(ANO_INTERNA, SEM_INTERNA) %>%
   summarize(
     ocorrencias = n(),
     .groups = 'drop'
@@ -384,16 +420,74 @@ rsemana <- collect(por_semana)
 # 
 # rdia <- collect(por_dia)
 
+# Taxa de internação hospitalar:
+# https://www.proadess.icict.fiocruz.br/index.php?pag=fic_r&cod=A51&tab=1
+
+# Numerador: número de internações hospitalares de residentes pagas pelo SUS x 1.000. Denominador: população total residente, no período considerado.
+
 coletado_R_semanas <- collect(por_municipio_semanas)
 coletado_R_semanas <- coletado_R_semanas %>% inner_join(populacao_municipios, by  = join_by(CO_MUN_RES == code_muni))
-coletado_R_semanas <- coletado_R_semanas %>% mutate(taxa = (ocorrencias/populacao_municipio) * 100000)
+coletado_R_semanas <- coletado_R_semanas %>% mutate(taxa_internacoes_srag_por_mil = (ocorrencias/populacao_municipio) * 1000)
 
 coletado_R_regiao_intermediaria_semanas <- collect(por_regiao_intermediaria_semanas)
 coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% inner_join(populacao_regiao_imediata, by = "cod_rgi")
-coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% mutate(taxa = (ocorrencias/populacao_rgi) * 100000)
+coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% 
+  mutate(taxa_internacoes_srag_por_mil = (ocorrencias/populacao_rgi) * 1000)
+taxa_internacao_por_regiao_intermediaria_por_semana <- coletado_R_regiao_intermediaria_semanas
+
+
+
+#####################
+# ocupacao_por_regiao_imediata = 
+vacina_internacao <-left_join(
+  x = evolucao_vacina_rgi_semana,
+  y = taxa_internacao_por_regiao_intermediaria_por_semana,
+  by = c("cod_rgi" = "cod_rgi", "ANO_VACINA"="ANO_INTERNA", "SEM_VACINA" = "SEM_INTERNA")
+) %>% mutate(taxa_vacinacao = (populacao_totalmente_vacinada/populacao_rgi))
+  
+
+
+#####################
+# coletado_R_regiao_intermediaria_semanas sumariza por cod_rgi, ano e weekofyear ####
 
 
 # ATE AQUI ESTA BATENDO 
+
+library('ISOweek')
+library(stringr)
+
+# fri <- coletado_R_regiao_intermediaria_semanas %>%  filter(cod_rgi == "330008") %>% select(ANO_INTERNA, SEM_INTERNA, taxa)
+# 
+# amostra <- coletado_R_regiao_intermediaria_semanas %>%  filter(cod_rgi %in% c("330008","430035")) %>% select(cod_rgi, ANO_INTERNA, SEM_INTERNA, taxa)
+
+vacina_internacao <- vacina_internacao %>%  mutate(semana_iso = ISOweek2date(paste0(ANO_VACINA,"-W",str_pad(SEM_VACINA,2,pad = "0"),"-1")))
+# z <- coletado_R_regiao_intermediaria_semanas %>%  mutate(semana_iso = ISOweek2date(paste0(ANO_INTERNA,"-W",str_pad(SEM_INTERNA,2,pad = "0"),"-1")))
+
+# $$$ sf_vacina_internacao tem coordenadas, taxa de vacinacao e taxa de internacao <<<<< ####
+sf_vacina_internacao <-inner_join(sf_vacinas, vacina_internacao, by = join_by(rgi == cod_rgi)) 
+  # dplyr::select(-nome_rgi.x, -nome_rgi.y, -populacao_totalmente_vacinada, -populacao_rgi)
+
+  
+tm_view(text.size.variable = TRUE)
+
+# tmap_mode("plot")
+tmap_mode("view")
+
+sf_vacina_internacao %>%
+  filter( semana_iso == "2022-04-04") %>%
+  tm_shape(simplify = 0.5) +
+  # tm_polygons(col = "taxa_populacao_totalmente_vacinada", id = "nome_rgi.x") +
+  tm_polygons(col = "taxa_internacoes_srag_por_mil",
+              # col = "taxa_internacao",
+              id = "nome_rgi",
+              # style = "quantile",
+              n = 8,
+              popup.vars = c("rgi","populacao_rgi","ocorrencias", "taxa_internacoes_srag_por_mil","taxa_vacinacao", "semana_iso"),
+              # ,"populacao_totalmente_vacinada"
+              palette = "viridis"
+  ) +
+  tm_text("nome_rgi", size = "taxa_internacoes_srag_por_mil", root = 5, remove.overlap = FALSE) 
+
 
 
 
