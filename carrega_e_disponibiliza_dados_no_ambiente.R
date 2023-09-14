@@ -465,30 +465,30 @@ vacina_internacao <- vacina_internacao %>%  mutate(semana_iso = ISOweek2date(pas
 
 # $$$ sf_vacina_internacao tem coordenadas, taxa de vacinacao e taxa de internacao <<<<< ####
 sf_vacina_internacao <-inner_join(sf_vacinas, vacina_internacao, by = join_by(rgi == cod_rgi)) 
-  # dplyr::select(-nome_rgi.x, -nome_rgi.y, -populacao_totalmente_vacinada, -populacao_rgi)
 
 
-# wide_vacina_internacao <- pivot_wider(data = sf_vacina_internacao, names_from = "rgi", values_from = "taxa_internacoes_srag_por_mil", names_sort = TRUE)
+# Exporta mapa taxa internacoes por semana
 pre_wide <- vacina_internacao %>% 
   select(cod_rgi,
          semana_iso,
          taxa_internacoes_srag_por_mil
          ) %>% 
   drop_na()
-  
+wide_internacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_internacoes_srag_por_mil", names_sort = TRUE)
+sf_internacao <-inner_join(sf_vacinas, wide_internacao, by = join_by(rgi == cod_rgi)) 
+st_write(sf_internacao , "./taxa_internacao/taxa_internacao.shp", append=FALSE )
 
-wide_vacina_internacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_internacoes_srag_por_mil", names_sort = TRUE)
-sf_vacina_internacao <-inner_join(sf_vacinas, wide_vacina_internacao, by = join_by(rgi == cod_rgi)) 
-st_write(sf_vacina_internacao , "./taxa_internacao/taxa_internacao.shp", append=FALSE )
 
+# Exporta mapa taxa vacinacao por semana
 pre_wide <- vacina_internacao %>% 
   select(cod_rgi,
          semana_iso,
          taxa_vacinacao
   ) %>% 
   drop_na()
-wide_vacina_internacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_vacinacao", names_sort = TRUE)
-st_write(sf_vacina_internacao , "./taxa_internacao/taxa_vacinacao.shp", append=FALSE )
+wide_vacinacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_vacinacao", names_sort = TRUE)
+sf_vacinacao <-inner_join(sf_vacinas, wide_vacinacao, by = join_by(rgi == cod_rgi)) 
+st_write(sf_vacinacao , "./taxa_internacao/taxa_vacinacao.shp", append=FALSE )
 
 ----
 tm_view(text.size.variable = TRUE)
