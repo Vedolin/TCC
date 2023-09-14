@@ -15,7 +15,7 @@
 # Objetivos a serem ajustados em funcao das perguntas acima
 
 
-# Linha 490
+# Linha 483, exportei arquivo wide para shape
 # Passos
 
 #                    REGIOES IMEDIATAS            ####
@@ -440,7 +440,7 @@ taxa_internacao_por_regiao_intermediaria_por_semana <- coletado_R_regiao_interme
 #####################
 # ocupacao_por_regiao_imediata = 
 vacina_internacao <-left_join(
-  x = evolucao_vacina_rgi_semana,
+  x = evolucao_vacina_rgi_semana %>% filter(SEM_VACINA != 53),
   y = taxa_internacao_por_regiao_intermediaria_por_semana,
   by = c("cod_rgi" = "cod_rgi", "ANO_VACINA"="ANO_INTERNA", "SEM_VACINA" = "SEM_INTERNA")
 ) %>% mutate(taxa_vacinacao = (populacao_totalmente_vacinada/populacao_rgi))
@@ -467,7 +467,30 @@ vacina_internacao <- vacina_internacao %>%  mutate(semana_iso = ISOweek2date(pas
 sf_vacina_internacao <-inner_join(sf_vacinas, vacina_internacao, by = join_by(rgi == cod_rgi)) 
   # dplyr::select(-nome_rgi.x, -nome_rgi.y, -populacao_totalmente_vacinada, -populacao_rgi)
 
+
+# wide_vacina_internacao <- pivot_wider(data = sf_vacina_internacao, names_from = "rgi", values_from = "taxa_internacoes_srag_por_mil", names_sort = TRUE)
+pre_wide <- vacina_internacao %>% 
+  select(cod_rgi,
+         semana_iso,
+         taxa_internacoes_srag_por_mil
+         ) %>% 
+  drop_na()
   
+
+wide_vacina_internacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_internacoes_srag_por_mil", names_sort = TRUE)
+sf_vacina_internacao <-inner_join(sf_vacinas, wide_vacina_internacao, by = join_by(rgi == cod_rgi)) 
+st_write(sf_vacina_internacao , "./taxa_internacao/taxa_internacao.shp", append=FALSE )
+
+pre_wide <- vacina_internacao %>% 
+  select(cod_rgi,
+         semana_iso,
+         taxa_vacinacao
+  ) %>% 
+  drop_na()
+wide_vacina_internacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_vacinacao", names_sort = TRUE)
+st_write(sf_vacina_internacao , "./taxa_internacao/taxa_vacinacao.shp", append=FALSE )
+
+----
 tm_view(text.size.variable = TRUE)
 
 # tmap_mode("plot")
