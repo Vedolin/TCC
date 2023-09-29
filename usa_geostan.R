@@ -17,5 +17,10 @@ sf_amostra <- sf_vacina_internacao %>%
   # filter (semana_iso <= ymd('2022-12-31'))
 
 sp_diag(sf_amostra$taxa_internacoes_srag_por_mil, sf_amostra, name = "Taxa internações SRAG por mil habitantes")
-
 sp_diag(sf_amostra$taxa_vacinacao, sf_amostra, name = "Taxa vacinacao")
+
+W <- shape2mat(sf_amostra, style = "W")
+moran_plot(sf_amostra, W)
+
+mc(sf_amostra$taxa_vacinacao, W)
+

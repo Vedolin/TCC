@@ -466,6 +466,8 @@ vacina_internacao <- vacina_internacao %>%  mutate(semana_iso = ISOweek2date(pas
 # $$$ sf_vacina_internacao tem coordenadas, taxa de vacinacao e taxa de internacao <<<<< ####
 sf_vacina_internacao <-inner_join(sf_vacinas, vacina_internacao, by = join_by(rgi == cod_rgi)) 
 
+# pedacinho <- sf_vacina_internacao %>%  filter(rgi == 330001)
+# st_write(pedacinho , "./taxa_internacao/taxa_internacao.shp", append=FALSE )
 
 # Exporta mapa taxa internacoes por semana
 pre_wide <- vacina_internacao %>% 
@@ -474,9 +476,64 @@ pre_wide <- vacina_internacao %>%
          taxa_internacoes_srag_por_mil
          ) %>% 
   drop_na()
-wide_internacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_internacoes_srag_por_mil", names_sort = TRUE)
-sf_internacao <-inner_join(sf_vacinas, wide_internacao, by = join_by(rgi == cod_rgi)) 
-st_write(sf_internacao , "./taxa_internacao/taxa_internacao.shp", append=FALSE )
+
+record_rgi_interna_max <- aggregate(taxa_internacoes_srag_por_mil ~ cod_rgi, pre_wide, max)
+record_rgi_interna_min <- aggregate(taxa_internacoes_srag_por_mil ~ cod_rgi, pre_wide, min)
+hist(record_rgi_interna_max$taxa_internacoes_srag_por_mil)
+hist(record_rgi_interna_min$taxa_internacoes_srag_por_mil)
+
+
+record_semana_interna_max <- aggregate(taxa_internacoes_srag_por_mil ~ semana_iso, pre_wide, max)
+record_semana_interna_min <- aggregate(taxa_internacoes_srag_por_mil ~ semana_iso, pre_wide, min)
+record_semana_interna_med <- aggregate(taxa_internacoes_srag_por_mil ~ semana_iso, pre_wide, mean)
+record_semana_interna_max_min <- inner_join(record_semana_interna_max,record_semana_interna_min, by = join_by(semana_iso == semana_iso) )
+plot(record_semana_interna_max)
+plot(record_semana_interna_min)
+plot(record_semana_interna_max_min)
+
+# record_semana_interna_max_min <- zscore(record_semana_interna_max_min)
+
+record_semana_interna_max_min$taxa_internacoes_srag_por_mil.x <- transform(record_semana_interna_max_min$taxa_internacoes_srag_por_mil.x, method="zscore")
+record_semana_interna_max_min$taxa_internacoes_srag_por_mil.y <- transform(record_semana_interna_max_min$taxa_internacoes_srag_por_mil.y, method="zscore")
+
+matplot(record_semana_interna_max_min, type = "b")
+ts.plot(ts(record_semana_interna_max_min$taxa_internacoes_srag_por_mil.x), ts(record_semana_interna_max_min$taxa_internacoes_srag_por_mil.y), gpars = list(col = c("black", "red")))
+
+
+# mmmm CUIDADO AQUI, NÃO TENHO CERTEZA SE FAZ SENTIDO ANALISAR A VARIACAO DA TAXA DE INTERNACAO ASSIM
+lines_semana_interna <- inner_join(
+  record_semana_interna_max %>% 
+    mutate(
+      internacoes_max = taxa_internacoes_srag_por_mil,
+      anterior_internacoes_max = lag(taxa_internacoes_srag_por_mil),
+      variacao_internacoes_max = internacoes_max - anterior_internacoes_max
+           ),
+  record_semana_interna_min %>%  mutate(taxa_internacoes_min = taxa_internacoes_srag_por_mil),
+  by = c("semana_iso") )
+
+lag()
+
+ts.plot(ts(record_semana_interna_max_min$taxa_internacoes_srag_por_mil.x), ts(record_semana_interna_max_min$taxa_internacoes_srag_por_mil.y), gpars = list(col = c("black", "red")))
+
+sf_long_internacao <-left_join(sf_vacinas, pre_wide, by = join_by(rgi == cod_rgi))
+
+st_write(sf_vacinas , "./long/sf_vacinas.shp", append=FALSE )
+
+write.csv(pre_wide,file='./long/sf_vacinas.csv',fileEncoding = "UTF-8")
++++++
+
+st_write(sf_long_internacao , "./long/long_taxa_internacao.shp", append=FALSE )
+
+# wide_internacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_internacoes_srag_por_mil" ,names_sort = TRUE)
+wide_internacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_internacoes_srag_por_mil" ,names_sort = TRUE)
+# Nomes no shapfile podem ter no maximo 10 caracteres
+# estou removendo o hifen dos campos com as datas (como 2021-01-04) e incluindo um i na frente
+# para representar as internacoes
+wide_internacao <- wide_internacao %>% rename_at(vars(starts_with("20")), ~str_c("i",str_replace_all(.,"-",""))) 
+sf_internacao <-left_join(sf_vacinas, wide_internacao, by = join_by(rgi == cod_rgi))
+
+
+st_write(sf_internacao , "./evolucao/taxa_internacao.shp", append=FALSE )
 
 
 # Exporta mapa taxa vacinacao por semana
@@ -487,10 +544,15 @@ pre_wide <- vacina_internacao %>%
   ) %>% 
   drop_na()
 wide_vacinacao <- pivot_wider(data = pre_wide, names_from = "semana_iso", values_from = "taxa_vacinacao", names_sort = TRUE)
-sf_vacinacao <-inner_join(sf_vacinas, wide_vacinacao, by = join_by(rgi == cod_rgi)) 
-st_write(sf_vacinacao , "./taxa_internacao/taxa_vacinacao.shp", append=FALSE )
+wide_vacinacao <- wide_vacinacao %>% rename_at(vars(starts_with("20")), ~str_c("v",str_replace_all(.,"-","")))
+sf_vacinacao <-left_join(sf_vacinas, wide_vacinacao, by = join_by(rgi == cod_rgi)) 
+st_write(sf_vacinacao , "./evolucao/taxa_vacinacao.shp", append=FALSE )
 
-----
+wide_int_vac <- left_join(wide_internacao, wide_vacinacao, by = join_by(cod_rgi == cod_rgi)) 
+sf_wide_int_vac <-left_join(sf_vacinas, wide_int_vac, by = join_by(rgi == cod_rgi))
+st_write(sf_wide_int_vac , "./evolucao/internacao_vacinacao.shp", append=FALSE )
+
+~----
 tm_view(text.size.variable = TRUE)
 
 # tmap_mode("plot")
