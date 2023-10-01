@@ -16,6 +16,7 @@
 
 
 # Linha 483, exportei arquivo wide para shape
+# Linha 520, experimentos com lag
 # Passos
 
 #                    REGIOES IMEDIATAS            ####
@@ -498,6 +499,111 @@ record_semana_interna_max_min$taxa_internacoes_srag_por_mil.y <- transform(recor
 
 matplot(record_semana_interna_max_min, type = "b")
 ts.plot(ts(record_semana_interna_max_min$taxa_internacoes_srag_por_mil.x), ts(record_semana_interna_max_min$taxa_internacoes_srag_por_mil.y), gpars = list(col = c("black", "red")))
+
+#  Calcular o lag das taxas de uma semana para a proxima para utilizar a variação como uma derivada
+# Por exemplo, delta_vacina de 1% corresponde a delta_internacao de 1.5% daqui a duas semanas
+# Para começar, obter as taxas para cada semana
+# Calcular os lags de taxas (pensar se isso é válido)
+# Calcular a correlação entre t0 e t1,2,3,4
+
+anterior_internacao_vacinacao <- vacina_internacao %>%
+  mutate (
+    taxa_internacao_anterior = lag(taxa_internacoes_srag_por_mil),
+    taxa_vacinacao_anterior = lag(taxa_vacinacao)
+  )
+
+variacao_internacao_vacinacao <- anterior_internacao_vacinacao %>%
+  mutate (
+    variacao_internacao = taxa_internacoes_srag_por_mil - taxa_internacao_anterior,
+    variacao_vacinacao = taxa_vacinacao - taxa_vacinacao_anterior
+  ) %>% 
+  select(
+    rgi = cod_rgi,
+    semana_iso,
+    int = taxa_internacoes_srag_por_mil,
+    vac = taxa_vacinacao,
+    intvar = variacao_internacao,
+    vacvar = variacao_vacinacao
+    )  %>% 
+  drop_na()
+
+
+# sf_variacao_internacao_vacinacao <-left_join(sf_vacinas , variacao_internacao_vacinacao, by = join_by(rgi == rgi))
+
+# st_write(sf_variacao_internacao_vacinacao , "./long/sf_variacao_internacao_vacinacao.shp", append=FALSE )
+
+# Cria Wide Internacao
+pre_wide_v <- variacao_internacao_vacinacao %>% 
+  select(rgi,
+         semana_iso,
+         int
+  )
+wide_int <- pivot_wider(
+  data = pre_wide_v,
+  names_from = "semana_iso",
+  values_from = "int",
+  names_sort = TRUE
+  )
+wide_int <- wide_int %>% rename_at(vars(starts_with("20")), ~str_c("i",str_replace_all(.,"-","")))
+
+
+
+# Cria Wide Taxa Internacao
+pre_wide_v <- variacao_internacao_vacinacao %>% 
+  select(rgi,
+         semana_iso,
+         intvar
+  )
+wide_v_int <- pivot_wider(
+  data = pre_wide_v,
+  names_from = "semana_iso",
+  values_from = "intvar",
+  names_sort = TRUE
+)
+wide_v_int <- wide_v_int %>% rename_at(vars(starts_with("20")), ~str_c("vi",str_replace_all(.,"-","")))
+
+
+# Cria Wide Vacinacao
+pre_wide_v <- variacao_internacao_vacinacao %>% 
+  select(rgi,
+         semana_iso,
+         vac
+  )
+wide_vac <- pivot_wider(
+  data = pre_wide_v,
+  names_from = "semana_iso",
+  values_from = "vac",
+  names_sort = TRUE
+)
+wide_vac <- wide_vac %>% rename_at(vars(starts_with("20")), ~str_c("v",str_replace_all(.,"-","")))
+
+
+# Cria Wide Taxa Vacinacao
+pre_wide_v <- variacao_internacao_vacinacao %>% 
+  select(rgi,
+         semana_iso,
+         vacvar
+  )
+wide_v_vac <- pivot_wider(
+  data = pre_wide_v,
+  names_from = "semana_iso",
+  values_from = "vacvar",
+  names_sort = TRUE
+)
+wide_v_vac <- wide_v_vac %>% rename_at(vars(starts_with("20")), ~str_c("vv",str_replace_all(.,"-","")))
+
+
+variacao_int_vac <- sf_vacinas %>% 
+  inner_join(wide_int,   by=c("rgi")) %>%
+  inner_join(wide_v_int, by=c("rgi")) %>%
+  inner_join(wide_vac,   by=c("rgi")) %>% 
+  inner_join(wide_v_vac, by=c("rgi"))
+
+st_write(variacao_int_vac , "./variacao/variacao_int_vac.shp", append=FALSE )
+
+-----------------------
+
+
 
 
 # mmmm CUIDADO AQUI, NÃO TENHO CERTEZA SE FAZ SENTIDO ANALISAR A VARIACAO DA TAXA DE INTERNACAO ASSIM
