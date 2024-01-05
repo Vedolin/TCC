@@ -1,3 +1,5 @@
+#Descomentei linha 376
+
 # BANCOS DE DADOS: ####
 # * taxa_internacao_por_100k_por_regiao_intermediaria_por_semana ####
 # * evolucao_vacina_rgi_semana traz o total de vacinados, agrupado por rgi, ano e semana.
@@ -14,9 +16,9 @@
 
 # Objetivos a serem ajustados em funcao das perguntas acima
 
-
+# Ver comentário na linha 237, sem firula
 # Linha 483, exportei arquivo wide para shape
-# Linha 520, experimentos com lag
+# Linha 603, variações
 # Passos
 
 #                    REGIOES IMEDIATAS            ####
@@ -137,8 +139,8 @@ evolucao_vacina_municipio <- evolucao_vacina_municipio %>%
 # Agora preciso da evolucao por regiao imediata ####
 # Acrescento as regioes imediatas aos municipios
 
-evolucao_vacina_municipio <- evolucao_vacina_municipio %>% 
-  inner_join(composicao_por_municipios, by = join_by(code_muni == code_muni) ) %>% 
+evolucao_vacina_municipio <- evolucao_vacina_municipio %>%
+  inner_join(composicao_por_municipios, by = join_by(code_muni == code_muni) ) %>%
   inner_join(populacao_regiao_imediata, by = join_by(cod_rgi == cod_rgi))
 
   
@@ -151,74 +153,108 @@ evolucao_vacina_regiao_imediata <- evolucao_vacina_municipio %>%
   mutate(taxa_populacao_totalmente_vacinada = (populacao_totalmente_vacinada / populacao_rgi) * 100 ) 
 
 
-# # Observando a evolução da vacinação por regiao imediata Sao Paulo e Friburgo  
-# evolucao_regiao_sampa <- evolucao_vacina_regiao_imediata %>%
-#                             filter(nome_rgi == 'São Paulo')
-# evolucao_regiao_friburgo <- evolucao_vacina_regiao_imediata %>%
-#   filter(nome_rgi == 'Nova Friburgo')
-# 
-# evolucao_regiao_frisampa <- rbind(evolucao_regiao_sampa, evolucao_regiao_friburgo)
-# 
-# 
-# 
-# 
-# library(ggplot2)
-# library(scales)
-# library(plotly)
-# ggplotly(
-# ggplot(evolucao_regiao_frisampa) +
-#  aes(x = date, y = taxa_populacao_totalmente_vacinada, colour = nome_rgi) +
-#  geom_line() +
-#  scale_color_hue(direction = 1) +
-#  scale_x_date(date_breaks="1 month", date_labels="%W-%y", date_minor_breaks = "1 week") +
-#  labs(x = "Data", y = "Percentual totalmente vacinados", 
-#  title = "Taxa de população totalmente vacinada", subtitle = "Friburgo x São Paulo", color = "Região Imediata") +
-#  ggthemes::theme_economist() +
-#   theme(axis.text.x=element_text(angle=60, hjust=1)) 
-# )
+# Observando a evolução da vacinação por regiao imediata Sao Paulo e Friburgo
+evolucao_regiao_sampa <- evolucao_vacina_regiao_imediata %>%
+                            filter(nome_rgi == 'São Paulo')
+evolucao_regiao_friburgo <- evolucao_vacina_regiao_imediata %>%
+  filter(nome_rgi == 'Nova Friburgo')
 
-# 
-# evolucao_vacina_estado <- evolucao_vacina_regiao_imediata %>%
-#   group_by(grupo_rgi = substr(cod_rgi,0,2), date) %>%
-#   summarize(
-#     populacao_total = sum(populacao_rgi, na.rm = TRUE),
-#     populacao_totalmente_vacinada = sum(populacao_totalmente_vacinada, na.rm = TRUE),
-#     .groups = 'drop'
-#   ) %>% 
-#   mutate(taxa_populacao_totalmente_vacinada = (populacao_totalmente_vacinada / populacao_total) * 100 ) 
-#   
-# ggplotly(
-#   ggplot(evolucao_vacina_estado) +
-#     aes(x = date, y = taxa_populacao_totalmente_vacinada, colour = grupo_rgi) +
-#     geom_line() +
-#     scale_color_hue(direction = 1) +
-#     scale_x_date(date_breaks="1 month", date_labels="%m-%y", date_minor_breaks = "1 week") +
-#     labs(x = "Data", y = "Percentual totalmente vacinados", 
-#          title = "Taxa de população totalmente vacinada", subtitle = "Por grupo de região imediata", color = "Região Imediata") +
-#     ggthemes::theme_economist() +
-#     theme(axis.text.x=element_text(angle=60, hjust=1)) 
-# )
+evolucao_regiao_frisampa <- rbind(evolucao_regiao_sampa, evolucao_regiao_friburgo)
+
+
+
+
+library(ggplot2)
+library(scales)
+library(plotly)
+ggplotly(
+ggplot(evolucao_regiao_frisampa) +
+ aes(x = date, y = taxa_populacao_totalmente_vacinada, colour = nome_rgi) +
+ geom_line() +
+ scale_color_hue(direction = 1) +
+ scale_x_date(date_breaks="1 month", date_labels="%W-%y", date_minor_breaks = "1 week") +
+ labs(x = "Data", y = "Percentual totalmente vacinados",
+ title = "Taxa de população totalmente vacinada", subtitle = "Friburgo x São Paulo", color = "Região Imediata") +
+ ggthemes::theme_economist() +
+  theme(axis.text.x=element_text(angle=60, hjust=1))
+)
+
+
+evolucao_vacina_estado <- evolucao_vacina_regiao_imediata %>%
+  group_by(grupo_rgi = substr(cod_rgi,0,2), date) %>%
+  summarize(
+    populacao_total = sum(populacao_rgi, na.rm = TRUE),
+    populacao_totalmente_vacinada = sum(populacao_totalmente_vacinada, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(taxa_populacao_totalmente_vacinada = (populacao_totalmente_vacinada / populacao_total) * 100 )
+
+library(labelled)
+
+evolucao_vacina_SP_MG_RJ <- evolucao_vacina_estado %>% 
+  filter(substr(grupo_rgi,0,2) %in% c(31,33,35)) 
+
+
+ggplotly(
+  ggplot(evolucao_vacina_SP_MG_RJ) +
+    aes(x = date, y = taxa_populacao_totalmente_vacinada, colour = grupo_rgi) +
+    geom_line() +
+    scale_color_hue(direction = 1) +
+    scale_x_date(date_breaks="1 month", date_labels="%m-%y", date_minor_breaks = "1 week") +
+    labs(x = "Data", y = "Percentual totalmente vacinados",
+         title = "Taxa de população totalmente vacinada", subtitle = "Por grupo de região imediata", color = "Região Imediata") +
+    ggthemes::theme_economist() +
+    theme(axis.text.x=element_text(angle=60, hjust=1))
+)
+# Analisar o gráfico que mostra as evoluções dos 3 estados
+
+# $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ #
 
 # evolucao_vacina_regiao_imediata Contem todas as datas (sem buracos) ####
 # evolucao_vacina_regiao_imediata_SP_RJ pegou os dias 01 de cada mes ####
 
 evolucao_vacina_regiao_imediata_SP_RJ <- evolucao_vacina_regiao_imediata %>%
+  filter(populacao_totalmente_vacinada < populacao_rgi) %>% 
   filter(substr(cod_rgi,0,2) %in% c('35','33')) %>% 
   filter(day(date)==1)  # pega apenas o dia 01 de cada mes
   # filter(year(date) %in% c(2021, 2022, 2023))
 
-evolucao_vacina_rgi_semana <- evolucao_vacina_municipio %>%
-  mutate(SEM_VACINA = isoweek(date),
-         ANO_VACINA = year(date)
-  ) %>% 
-  group_by(cod_rgi, ANO_VACINA, SEM_VACINA) %>%
+
+evolucao_vacina_rgi <- evolucao_vacina_municipio %>%
+  filter(date <= dmy("01/04/2023")) %>% 
+  group_by(cod_rgi, date) %>%
   summarize(
     populacao_totalmente_vacinada = sum(people_fully_vaccinated, na.rm = TRUE),
     .groups = 'drop'
   ) 
 
+
+
+evolucao_vacina_rgi_semana <- evolucao_vacina_rgi %>%
+  mutate(SEM_VACINA = isoweek(date),
+         ANO_VACINA = year(date)
+  ) %>% 
+  group_by(cod_rgi, ANO_VACINA, SEM_VACINA) %>%
+  summarize(
+    populacao_totalmente_vacinada = max(populacao_totalmente_vacinada, na.rm = TRUE),
+    .groups = 'drop'
+  ) 
+
+# Acrescenta população da rgi para permitir o cálculo da taxa de vacinados
 # evolucao_vacina_rgi_semana traz o total de vacinados, agrupado por rgi, ano e semana.
 
+evolucao_vacina_rgi_semana <- evolucao_vacina_rgi_semana %>% 
+inner_join(populacao_regiao_imediata, by = join_by(cod_rgi == cod_rgi))
+
+evolucao_vacina_rgi_semana <- evolucao_vacina_rgi_semana %>%
+  mutate(taxa_vacinacao = (populacao_totalmente_vacinada / populacao_rgi))
+
+errado <- evolucao_vacina_rgi_semana %>%  filter(populacao_totalmente_vacinada>populacao_rgi)
+
+evolucao_vacina_rgi_semana <- evolucao_vacina_rgi_semana %>%
+  filter(populacao_totalmente_vacinada < populacao_rgi)
+### ************** #####
+### Numericamente o objeto evolucao_vacina_rgi_semana está bom
 
 spatial_vacinas_por_regiao_imediata <- regiao_imediata
 spatial_vacinas_por_regiao_imediata@data$rgi <- as.numeric(spatial_vacinas_por_regiao_imediata@data$rgi)
@@ -228,10 +264,27 @@ sf_vacinas <- st_as_sf(x = spatial_vacinas_por_regiao_imediata,
 joined_SP_RJ <-inner_join(sf_vacinas, evolucao_vacina_regiao_imediata_SP_RJ, by = join_by(rgi == cod_rgi)) %>% 
   dplyr::select(-nome_rgi.x, -nome_rgi.y, -populacao_totalmente_vacinada, -populacao_rgi)
 
+tmap_mode("view")
+
+joined_SP_RJ %>%
+  filter( date == "2022-06-01") %>%
+  tm_shape(simplify = 0.5) +
+  # tm_polygons(col = "taxa_populacao_totalmente_vacinada", id = "nome_rgi.x") +
+  tm_polygons(col = "taxa_populacao_totalmente_vacinada",
+              id = "rgi",
+              # style = "quantile",
+              n = 8,
+              popup.vars = c("rgi","taxa_populacao_totalmente_vacinada","date"),
+              palette = "viridis"
+  ) +
+  tm_text("taxa_populacao_totalmente_vacinada", size = "AREA", root = 5, remove.overlap = FALSE) 
+
+
 vwide <- pivot_wider(data = joined_SP_RJ, names_from="date", values_from = "taxa_populacao_totalmente_vacinada")
 
 # CHECKCPOINT ####
 # EXPORTAR TAXA DE VACINACAO PARA GEODA ####
+# '/home/administrator/Desktop/Guarda/personal/MBA/aulas/Big Data e Deployment de Modelos II/Arquivos e Scripts 28.04.2023'
 # st_write(vwide , "./joined_SP_RJ/joined_SP_RJ.shp")
 
 
@@ -264,6 +317,7 @@ ocupacao_carregada <- spark_read_csv(
 # Observando Semana de entrada na UTI no estado RJ
 
 # copy_to(sc, ocupacao,name = "ocupacao_spark", overwrite = TRUE)
+# Carrega no spark lista de municípios com a região imediata a que pertencem
 composicao_por_municipios_spark <- copy_to(
   sc,
   composicao_por_municipios,
@@ -273,6 +327,7 @@ composicao_por_municipios_spark <- copy_to(
 # NO coleta_composicao_por_municipios_spark <- collect(composicao_por_municipios_spark) #So vendo se esta como eu esperava
 
 # ocupacao_por_regiao_imediata = 
+# Une a ocupação carregada com a lsita de municípios e regiões imediatas
 ocupacao <- sparklyr::left_join(
   x = ocupacao_carregada,
   y = composicao_por_municipios_spark,
@@ -320,8 +375,9 @@ ocupacao <- ocupacao %>%
     )
 
 ocupacao <- ocupacao %>%
-  filter(DT_INTERNA >= to_date("01/01/2021", "d/M/y")) %>% # Inicio dos dados de internacao
-  filter(DT_INTERNA <= to_date("01/04/2023", "d/M/y")) # Ultimo dia da semana epidemiologica 13
+  # filter(DT_INTERNA >= to_date("01/01/2021", "d/M/y")) %>% # Inicio dos dados de internacao
+  filter(DT_INTERNA <= to_date("01/04/2023", "d/M/y")) %>%  # Ultimo dia da semana epidemiologica 13
+  filter(DT_INTERNA >= to_date("01/01/2020", "d/M/y")) # Arbitrariamente escolhido 'depois de 2019'
 
 # Acho que estou brigando demais com o spark
 # Vou usar alguns comandos linux para ganhar tempo e assertividade
@@ -432,19 +488,125 @@ coletado_R_semanas <- coletado_R_semanas %>% mutate(taxa_internacoes_srag_por_mi
 
 coletado_R_regiao_intermediaria_semanas <- collect(por_regiao_intermediaria_semanas)
 coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% inner_join(populacao_regiao_imediata, by = "cod_rgi")
+
 coletado_R_regiao_intermediaria_semanas <- coletado_R_regiao_intermediaria_semanas %>% 
   mutate(taxa_internacoes_srag_por_mil = (ocorrencias/populacao_rgi) * 1000)
+
 taxa_internacao_por_regiao_intermediaria_por_semana <- coletado_R_regiao_intermediaria_semanas
 
+evolucao_vacina_rgi_semana 
 
+# Comparar o objeto taxa_internacao_por_regiao_intermediaria_por_semana com o da linha 252 (evolucao_vacina_rgi_semana )
+
+
+
+library('ISOweek')
+library(stringr)
+
+evolucao_vacina_rgi_semana <- evolucao_vacina_rgi_semana %>% mutate(semana_iso = ISOweek2date(paste0(ANO_VACINA,"-W",str_pad(SEM_VACINA,2,pad = "0"),"-1")))
+
+filtrada <- evolucao_vacina_rgi_semana %>% filter(cod_rgi %in% c(350001,330001 ))
+
+library(timetk)
+# tk_diag_evolucao_vacina_rgi_semana <- filtrada %>% group_by(cod_rgi) %>% tk_anomaly_diagnostics(semana_iso, taxa_vacinacao)
+# 
+# plot_anomaly_evolucao_vacina_rgi_semana <- filtrada %>% group_by(cod_rgi) %>% plot_anomaly_diagnostics(semana_iso, taxa_vacinacao)
+# plot_anomaly_evolucao_vacina_rgi_semana
+
+
+
+taxa_internacao_por_regiao_intermediaria_por_semana <- coletado_R_regiao_intermediaria_semanas
+filtrada <- taxa_internacao_por_regiao_intermediaria_por_semana %>%
+  filter(cod_rgi %in% c(350001,330001 )) %>%
+  filter(SEM_INTERNA != 53)
+
+filtrada <- filtrada %>% mutate(semana_iso = ISOweek2date(paste0(ANO_INTERNA,"-W",str_pad(SEM_INTERNA,2,pad = "0"),"-1")))
+
+plot_anomaly_evolucao_vacina_rgi_semana <- filtrada %>% group_by(cod_rgi) %>% plot_anomaly_diagnostics(semana_iso, taxa_internacoes_srag_por_mil)
+plot_anomaly_evolucao_vacina_rgi_semana
+
+library(gganimate)
+historgrama_animado <- ggplot(taxa_internacao_por_regiao_intermediaria_por_semana %>% mutate(semana_iso = ISOweek2date(paste0(ANO_INTERNA,"-W",str_pad(SEM_INTERNA,2,pad = "0"),"-1")))) +
+  aes(x = taxa_internacoes_srag_por_mil) +
+  geom_histogram() +
+  # geom_density() +
+  transition_states(semana_iso) 
+
+anim_save(historgrama_animado,filename = "historgrama_animado.gif")
+
+
+# Este também é interessante, mostrando o scatter de ocorrencias x internacoes entre RJ e SP
+
+ggplot(filtrada) +
+  aes(
+    x = ocorrencias,
+    y = taxa_internacoes_srag_por_mil,
+    colour = cod_rgi
+  ) +
+  geom_point(shape = "circle", size = 1.5) +
+  scale_color_gradient() +
+  theme_minimal() +
+  facet_wrap(vars(ANO_INTERNA))
+
+# 
+# ggplot(filtrada) +
+#   aes(x = semana_iso, y = taxa_internacoes_srag_por_mil, group=semana_iso) +
+#   geom_line(colour = "#112446") +
+#   theme_minimal() +
+#   transition_reveal(semana_iso)
+
+
+# library(webglobe) 
+# 
+# wg <- webglobe(immediate=TRUE) #Make a webglobe (should open a net browser)
+# Sys.sleep(10)                     #Wait for browser to start, or it won't work
+# wg + wgpolygondf(joined_SP_RJ)
+
+# 
+# joined_SP_RJ +
+#   stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
+#                  size = 2, bins = 4, data = violent_crimes, geom = "polygon") 
+#   
+
+
+
+
+library(ggplot2)
+library(timetk)
+
+plot_anomaly_evolucao_vacina_rgi_semana <- filtrada %>% group_by(ANO_INTERNA ) %>% plot_anomaly_diagnostics(semana_iso, taxa_internacoes_srag_por_mil)
+plot_anomaly_evolucao_vacina_rgi_semana
+
+# library(ggstatsplot)
+# 
+# ggbetweenstats(
+#   data = dplyr::filter(taxa_internacao_por_regiao_intermediaria_por_semana, ANO_INTERNA==2021),
+#   x = cod_rgi,
+#   y = taxa_internacoes_srag_por_mil
+# )
 
 #####################
 # ocupacao_por_regiao_imediata = 
 vacina_internacao <-left_join(
-  x = evolucao_vacina_rgi_semana %>% filter(SEM_VACINA != 53),
+  x = evolucao_vacina_rgi_semana,
   y = taxa_internacao_por_regiao_intermediaria_por_semana,
   by = c("cod_rgi" = "cod_rgi", "ANO_VACINA"="ANO_INTERNA", "SEM_VACINA" = "SEM_INTERNA")
-) %>% mutate(taxa_vacinacao = (populacao_totalmente_vacinada/populacao_rgi))
+)
+
+vacina_internacao <- vacina_internacao %>% 
+  dplyr::select(-populacao_rgi.y) %>%
+  rename("populacao_rgi" = "populacao_rgi.x") %>% 
+  mutate(populacao_exposta = populacao_rgi - populacao_totalmente_vacinada) %>% 
+  mutate(taxa_ocorrencias_populacao_exposta = ocorrencias / populacao_exposta) %>%   # Deveria ser população exposta há uma ou duas semanas
+  mutate(ANO_AMOSTRA = ANO_VACINA , SEM_AMOSTRA = SEM_VACINA)
+#####################
+
+# Dados tabelados
+#####################
+
+
+#####################
+#####################
   
 
 
@@ -464,8 +626,23 @@ library(stringr)
 vacina_internacao <- vacina_internacao %>%  mutate(semana_iso = ISOweek2date(paste0(ANO_VACINA,"-W",str_pad(SEM_VACINA,2,pad = "0"),"-1")))
 # z <- coletado_R_regiao_intermediaria_semanas %>%  mutate(semana_iso = ISOweek2date(paste0(ANO_INTERNA,"-W",str_pad(SEM_INTERNA,2,pad = "0"),"-1")))
 
+vacina_internacao <- vacina_internacao %>% mutate(cod_estado = substr(sf_vacina_internacao$rgi,0,2))
+
 # $$$ sf_vacina_internacao tem coordenadas, taxa de vacinacao e taxa de internacao <<<<< ####
 sf_vacina_internacao <-inner_join(sf_vacinas, vacina_internacao, by = join_by(rgi == cod_rgi)) 
+
+
+###$$$$$###$$$$ ATÉ AQUI
+###$$$$$###$$$$ ATÉ AQUI
+###$$$$$###$$$$ ATÉ AQUI
+
+z <- vacina_internacao$taxa_ocorrencias_populacao_exposta
+means <- apply(z,2,mean)
+sds <- apply(z,2,sd)
+nor <- scale(z,center=means)
+distance = dist(nor)
+  mydata.hclust = hclust(distance)
+plot(mydata.hclust)
 
 # pedacinho <- sf_vacina_internacao %>%  filter(rgi == 330001)
 # st_write(pedacinho , "./taxa_internacao/taxa_internacao.shp", append=FALSE )
