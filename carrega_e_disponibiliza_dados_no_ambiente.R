@@ -626,23 +626,136 @@ library(stringr)
 vacina_internacao <- vacina_internacao %>%  mutate(semana_iso = ISOweek2date(paste0(ANO_VACINA,"-W",str_pad(SEM_VACINA,2,pad = "0"),"-1")))
 # z <- coletado_R_regiao_intermediaria_semanas %>%  mutate(semana_iso = ISOweek2date(paste0(ANO_INTERNA,"-W",str_pad(SEM_INTERNA,2,pad = "0"),"-1")))
 
-vacina_internacao <- vacina_internacao %>% mutate(cod_estado = substr(sf_vacina_internacao$rgi,0,2))
-
-# $$$ sf_vacina_internacao tem coordenadas, taxa de vacinacao e taxa de internacao <<<<< ####
-sf_vacina_internacao <-inner_join(sf_vacinas, vacina_internacao, by = join_by(rgi == cod_rgi)) 
+vacina_internacao <- vacina_internacao %>%  filter(semana_iso <= dmy("01/04/2023"))
+vacina_internacao <- vacina_internacao %>%  filter(SEM_VACINA != 53)
 
 
-###$$$$$###$$$$ ATÉ AQUI
-###$$$$$###$$$$ ATÉ AQUI
-###$$$$$###$$$$ ATÉ AQUI
 
-z <- vacina_internacao$taxa_ocorrencias_populacao_exposta
+# $$$ sf_vacina_internacao tem coordenadas<<<<< ####
+# vacina_internacao <-inner_join(sf_vacinas, vacina_internacao, by = join_by(rgi == cod_rgi)) 
+
+vacina_internacao <-inner_join(vacina_internacao, sf_vacinas, by = join_by(cod_rgi == rgi)) 
+
+vacina_internacao <- vacina_internacao %>% na.omit() %>%  mutate(cod_estado = substr(cod_rgi,0,2))
+
+
+# Escolhi Goias (52) porque a variação entre máximos e mínimos me chamou a atenção visualmente
+# Fiz um facet por região imediata
+
+selecao <- vacina_internacao %>% filter(cod_estado == 52)
+
+ggplot(selecao) +
+  aes(
+    x = semana_iso,
+    y = taxa_internacoes_srag_por_mil,
+    colour = taxa_vacinacao
+  ) +
+  geom_line() +
+  scale_color_gradient(low = "#FF0000", high = "#05FF56") +
+  theme_dark() +
+  facet_wrap(vars(nome_rgi))
+
+ggplot(selecao) +
+  aes(
+    x = semana_iso,
+    y = taxa_internacoes_srag_por_mil,
+    colour = taxa_ocorrencias_populacao_exposta
+  ) +
+  geom_line() +
+  scale_color_gradient(low = "#7FC97F", high = "#FB0707") +
+  theme_dark() +
+  facet_wrap(vars(nome_rgi))
+
+ggplotly(
+ggplot(selecao) +
+  aes(
+    x = taxa_vacinacao,
+    y = taxa_internacoes_srag_por_mil,
+    colour = taxa_ocorrencias_populacao_exposta
+  ) +
+  geom_point(shape = "circle", size = 1L) +
+  scale_color_gradient(low = "#837D7B", high = "#F40C29") +
+  theme_dark() +
+  facet_wrap(vars(nome_rgi)))
+
+
+#  https://www.r-bloggers.com/2021/04/cluster-analysis-in-r/
+
+clusterizacao <- selecao  %>% filter(semana_iso == date('2021-03-22')) %>% select(nome_rgi,taxa_internacoes_srag_por_mil)
+z <- clusterizacao[,-c(1,1)]
+# z <- clusterizacao
 means <- apply(z,2,mean)
 sds <- apply(z,2,sd)
-nor <- scale(z,center=means)
+nor <- scale(z,center=means,scale=sds)
+
 distance = dist(nor)
-  mydata.hclust = hclust(distance)
-plot(mydata.hclust)
+
+hclust = hclust(distance)
+
+# plot(hclust)
+
+plot(hclust,labels=clusterizacao$nome_rgi,main='Default from hclust')
+
+plot(hclust,hang=-1, labels=clusterizacao$nome_rgi,main='Default from hclust')
+
+
+member = cutree(hclust,5)
+table(member)
+aggregate(nor,list(member),mean)
+aggregate(clusterizacao$taxa_internacoes_srag_por_mil,list(member),mean)
+
+
+# Scree plot will allow us to see the variabilities in clusters, suppose if we increase the number of clusters within-group sum of squares will come down.
+wss <- (nrow(nor)-1)*sum(apply(nor,2,var))
+for (i in 2:20) wss[i] <- sum(kmeans(nor, centers=i)$withinss)
+plot(1:20, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+
+
+# Vou escolher 5
+set.seed(123)
+kc<-kmeans(nor,5)
+
+
+library(cluster)
+ot<-nor
+datadistshortset<-dist(ot,method = "euclidean")
+hc1 <- hclust(datadistshortset, method = "complete" )
+pamvshortset <- pam(datadistshortset,4, diss = FALSE)
+clusplot(pamvshortset, shade = FALSE,labels=2,col.clus="blue",col.p="red",span=FALSE,main="Cluster Mapping",cex=1.2)
+
+library(factoextra) 
+k2 <- kmeans(nor, centers = 5, nstart = 25)
+
+comnor <- selecao  %>% filter(semana_iso == date('2021-03-22')) %>% select(nome_rgi,taxa_vacinacao)
+comnor$nor <- nor[,1]
+  
+ggplotly(fviz_cluster(k2, data = comnor,  choose.vars=c("nor","taxa_vacinacao")))
+
+sf_taxa_internacoes_srag <- sf_vacinas %>% filter(substr(rgi,0,2) =="52" )
+sf_taxa_internacoes_srag$cluster <- member
+
+
+
+
+tmap_mode("view")
+
+sf_taxa_internacoes_srag %>%
+  tm_shape(simplify = 0.5) +
+  # tm_polygons(col = "taxa_populacao_totalmente_vacinada", id = "nome_rgi.x") +
+  tm_polygons(col = "cluster",
+              id = "nome_rgi",
+              # style = "quantile",
+              n = 5,
+              popup.vars = c("rgi","cluster"),
+              palette = "viridis"
+  ) +
+  tm_text("cluster", size = "AREA", root = 5, remove.overlap = FALSE) 
+
+###$$$$$###$$$$ ATÉ AQUI
+###$$$$$###$$$$ ATÉ AQUI
+###$$$$$###$$$$ ATÉ AQUI
+
+
 
 # pedacinho <- sf_vacina_internacao %>%  filter(rgi == 330001)
 # st_write(pedacinho , "./taxa_internacao/taxa_internacao.shp", append=FALSE )
